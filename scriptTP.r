@@ -70,8 +70,46 @@ populateDataFrame <- function(){
   return(port_df);
 }
 
-renta6months.df = populateDataFrame()
+renta6months.df = populateDataFrame();
 #Tri la dataframe
 sortedPortfolio <- renta6months.df[with(renta6months.df, order(renta6months.df$return_6_month)), ];
+sortedPortfolio1984 <- sortedPortfolio[sortedPortfolio$year == 1984, ];
+#Data frame pour stocker tous les portefeuilles P1 et P10 entre 1984 et 2005
+GetAllP = function() {
+  port_df = data.frame(matrix(nrow=0, ncol=4));
+  colNames = c("stock_number", "month", "year", "portefolio");
+  colnames(port_df) <- colNames;
+  for (year in 1984:1987) {
+    sortedPortfolioyear <- sortedPortfolio[sortedPortfolio$year == year, ];
+    lenPort = nrow(sortedPortfolioyear);
+    P10 = sortedPortfolioyear[1:10,];
+    deb = lenPort - 9;
+    P1 = sortedPortfolioyear[deb:lenPort, ];
+    for (row in 1:10) {
+      for (month in 1:6) {
+        list_tmp <- c(P10$stock_number[row], 6 + month, year, "P10");
+        port_df[nrow(port_df) + 1,] <- list_tmp;
+        list_tmp_2 <- c(P1$stock_number[row], 6 + month, year, "P1");
+        port_df[nrow(port_df) + 1,] <- list_tmp_2;
+      }
+      for (month in 7:12) {
+        list_tmp <- c(P10$stock_number[row], month - 6, year + 1, "P10");
+        port_df[nrow(port_df) + 1,] <- list_tmp;
+        list_tmp_2 <- c(P1$stock_number[row], month - 6, year + 1, "P1");
+        port_df[nrow(port_df) + 1,] <- list_tmp_2;
+      }
+    }
+  }
+  return (port_df);
+}
 
-sortedPortfolio[1:10,]
+allP = GetAllP();
+test = allP[allP$portefolio == "P1", ];
+
+#Calcule des portefeuilles P1 et P10 ou P1 est le portefeuille le plus performant et P10 le moins
+#P10 = sortedPortfolio[1:10,];
+#lenPort = nrow(sortedPortfolio);
+#lenPort;
+#deb = lenPort - 9;
+#P1 = sortedPortfolio[deb:lenPort, ];
+#P1;
