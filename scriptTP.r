@@ -1,4 +1,4 @@
-setwd("/user/2/.base/cadicn/home/Documents/3A/GA");
+setwd("C:\\Users\\Thomas\\Documents\\Cours\\3A\\Gestion Alternative");
 
 datas <- read.csv(file='data_final_facteurs_fusionne_2018.csv',header=TRUE, sep=",");
 
@@ -13,16 +13,43 @@ stock_number = prev_stock_number;
 stock_number_unique = prev_stock_number_unique;
 
 #Determine les 100 titres à analyser 
-y = 2004;
-while (length(prev_stock_number_unique) >= 100 && y > 1966) {
-  stock_number = datas_fm[which(datas_fm$year == y), ];
-  stock_number_unique = unique(stock_number$stock_number);
+#y = 2004;
+#while (length(prev_stock_number_unique) >= 100 && y > 1966) {
+#  stock_number = datas_fm[which(datas_fm$year == y), ];
+"  stock_number_unique = unique(stock_number$stock_number);
   prev_stock_number_unique = intersect(prev_stock_number_unique, stock_number_unique);
   length(prev_stock_number_unique)
   y = y - 1;
+}"
+
+#datas_fm$return_rf[datas_fm$year == year & datas_fm$stock_number == stock_number]
+y = 2004;
+prev_stock_number_unique = unique(datas_fm$stock_number);
+while (length(prev_stock_number_unique) > 100 && y > 1966) {
+  stock_numbers = unique(datas_fm$stock_number[datas_fm$year == y]);
+  stock_numbers = check_values(stock_numbers, y);
+  prev_stock_number_unique = intersect(prev_stock_number_unique, stock_numbers);
+  cat(length(prev_stock_number_unique));
+  cat("\n")
+  y = y - 1;
+}
+cat(y + 1)
+cat("\n")
+cat(prev_stock_number_unique);
+cat(length(prev_stock_number_unique))
+
+check_values <- function(list_stock, year) {
+  for(stock in list_stock) {
+    if(length(datas_fm$return_rf[datas_fm$stock_number == stock & datas_fm$year == year]) != 12) {
+      #cat(list_stock);
+      list_stock = list_stock[list_stock != stock]
+    }
+  }
+  return(list_stock);
 }
 
-prev_stock_number_unique;
+
+
 
 y;
 
@@ -49,3 +76,4 @@ CalculeRenta(1, 1, 1982, 1985, 383);
 colNames = c("stock_number", "month", "year", "return_6_month");
 portfolio.df = data.frame(matrix(nrow=0, ncol=4));
 colnames(portfolio.df) <- colNames;
+
