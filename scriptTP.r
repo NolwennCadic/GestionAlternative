@@ -36,16 +36,42 @@ CalculeRenta <- function(bMonth, eMonth, bYear, eYear, stockNum) {
   compteur = 0;
   for (month in bMonth:eMonth) {
     rentaMoinsRf = datas_stock.df$return_rf[datas_stock.df$month == month & datas_stock.df$year == bYear & datas_stock.df$stock_number == stockNum];
+    rentaMoinsRf;
     rf = datas_stock.df$RiskFreeReturn[datas_stock.df$month == month & datas_stock.df$year == bYear & datas_stock.df$stock_number == stockNum];
-    if(rentaMoinsRf != numeric(0)) {
+    rf;
+    if(length(rentaMoinsRf) != 0) {
+      "coucou";
       value = value *(1 + rentaMoinsRf + rf);
       compteur = compteur + 1;
     }
   }
-  return ((value - 1)/1)^1/compteur;
+  return (value^1/compteur -1);
 }
 
-CalculeRenta(1, 1, 1982, 1985, 383);
-colNames = c("stock_number", "month", "year", "return_6_month");
-portfolio.df = data.frame(matrix(nrow=0, ncol=4));
+CalculeRenta(1, 12, 1982, 1985, 383);
+colNames = c("stock_number", "year", "return_6_month");
+renta6months.df = data.frame(matrix(nrow=0, ncol=3));
 colnames(portfolio.df) <- colNames;
+list_portefeuille = c();
+populateDataFrame <- function(){
+  port_df = data.frame(matrix(nrow=0, ncol=3));
+  colnames(port_df) <- colNames;
+  for (year in 1984:2005){
+    for (stock_number in  prev_stock_number_unique){
+      monthlyReturn = CalculeRenta(1, 6, year, year, stock_number);
+      #cat(monthlyReturn);
+
+        list_tmp <- c(stock_number, year, monthlyReturn);
+        
+        port_df[nrow(port_df) + 1,] <- list_tmp;
+      
+    }
+  }
+  return(port_df);
+}
+
+renta6months.df = populateDataFrame()
+#Tri la dataframe
+sortedPortfolio <- renta6months.df[with(renta6months.df, order(renta6months.df$return_6_month)), ];
+
+sortedPortfolio[1:10,]
