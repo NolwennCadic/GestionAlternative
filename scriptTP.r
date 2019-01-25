@@ -1,5 +1,5 @@
-#setwd("C:\\Users\\Thomas\\Documents\\Cours\\3A\\Gestion Alternative");
-setwd("/user/2/.base/cadicn/home/Documents/3A/GA");
+setwd("C:\\Users\\Thomas\\Documents\\Cours\\3A\\Gestion Alternative");
+#setwd("/user/2/.base/cadicn/home/Documents/3A/GA");
 
 datas <- read.csv(file='data_final_facteurs_fusionne_2018.csv',header=TRUE, sep=",");
 
