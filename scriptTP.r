@@ -217,7 +217,7 @@ returnPeriodPort = function(YearRange, bMonth, rebalancingPeriod) {
     returnf = mean(dataSelectedPeriod$RiskFreeReturn);
     returnm = mean(dataSelectedPeriod$Marketretrun);
     stdevRm = sd(dataSelectedPeriod$Marketretrun);
-    pYearReturn = as.numeric(allP$return[allP$`portfolio number`=='P1' & allP$year==year & allP$month==7]);
+    pYearReturn = as.numeric(allP$return[allP$`portfolio number`=='P1' & allP$year==year & allP$month==bMonth +1]);
     returnP = mean(pYearReturn);
     stdevP = sd(pYearReturn);
     list_tmp = c(year, returnP, returnm, returnf, stdevP, stdevRm);
@@ -225,7 +225,7 @@ returnPeriodPort = function(YearRange, bMonth, rebalancingPeriod) {
   }
 }
 
-returnPeriodPortByYear = returnPeriodPort(1984:1984);
+returnPeriodPortByYear = returnPeriodPort(1984:1984, 6, 12);
 
 
 
@@ -305,7 +305,7 @@ MeasureSharpe <-SharpeRatio(1984, 7, 2005, 5)
 
 
 #--------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------Alpha de Jensen et betâ---------------------------------------------
+#------------------------------------------------Alpha de Jensen et bet?---------------------------------------------
 
 
 colNamesRegression = c('year', 'month', 'returnP1-Rf', 'returnP10-Rf', 'returnP10MinusP1-Rf', 'RM-Rf', "SMB", "HML", "MOM");
