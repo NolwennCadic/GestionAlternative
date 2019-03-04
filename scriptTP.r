@@ -1,5 +1,5 @@
-setwd("C:\\Users\\Thomas\\Documents\\Cours\\3A\\Gestion Alternative");
-#setwd("/user/2/.base/cadicn/home/Documents/3A/GA");
+#setwd("C:\\Users\\Thomas\\Documents\\Cours\\3A\\Gestion Alternative");
+setwd("/user/5/lelettyt/Documents/3A/GestionAltern/GestionAlternative");
 
 datas <- read.csv(file='data_final_facteurs_fusionne_2018.csv',header=TRUE, sep=",");
 
@@ -81,6 +81,8 @@ colNames = c("stock_number", "year", "return_6_month");
 renta6months.df = data.frame(matrix(nrow=0, ncol=3));
 colnames(portfolio.df) <- colNames;
 list_portefeuille = c();
+
+
 populateDataFrame <- function(){
   port_df = data.frame(matrix(nrow=0, ncol=3));
   colnames(port_df) <- colNames;
@@ -165,7 +167,70 @@ GetAllP = function() {
     P10 = sortedPortfolioyear[deb:lenPort, ];
     for (row in 1:10) {
       for (month in 1:6) {
-          data_row = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month + 6, ]
+        populateDataFrame <- function(){
+          port_df = data.frame(matrix(nrow=0, ncol=3));
+          colnames(port_df) <- colNames;
+          for (year in 1984:2005){
+            for (stock_number in  prev_stock_number_unique){
+              monthlyReturn = CalculeRentaOverYears(1, 6, year, year, stock_number);
+              #cat(monthlyReturn);
+              
+              list_tmp <- c(stock_number, year, monthlyReturn);
+              
+              port_df[nrow(port_df) + 1,] <- list_tmp;
+              
+            }
+          }
+          return(port_df);
+        }
+        
+        
+        #Calcule de la rentabilité d'un titre entre les périodes données
+        CalculeRentaOverYears <- function(bMonth, eMonth, bYear, eYear, stockNum) {
+          value = 1;
+          compteur = 0;
+          if(eYear < bYear || (eYear == bYear && bMonth > eMonth)) { #Error period.
+            cat("Error return period");
+            return(0);
+          }
+          if(eYear > bYear) {#Good period and return over different years.
+            year = bYear
+            month = bMonth
+            while(year<eYear || (year == eYear && month<=eMonth)) {
+              rentaMoinsRf = datas_stock.df$return_rf[datas_stock.df$month == month & datas_stock.df$year == year & datas_stock.df$stock_number == stockNum];
+              rf = datas_stock.df$RiskFreeReturn[datas_stock.df$month == month & datas_stock.df$year == year & datas_stock.df$stock_number == stockNum];
+              if(length(rentaMoinsRf) != 0) {
+                value = value *(1 + rentaMoinsRf + rf);
+                compteur = compteur + 1;
+              }else{
+                cat("Missing value : ");
+                cat("\n");
+              }
+              if(month == 12) {
+                year = year + 1;
+                month = 1;
+              }else {
+                month = month + 1;
+              }
+            }
+            return (value**(1/compteur) -1);
+          }else{#Good period and return over the same year.
+            for (month in bMonth:eMonth) {
+              rentaMoinsRf = datas_stock.df$return_rf[datas_stock.df$month == month & datas_stock.df$year == bYear & datas_stock.df$stock_number == stockNum];
+              rentaMoinsRf;
+              rf = datas_stock.df$RiskFreeReturn[datas_stock.df$month == month & datas_stock.df$year == bYear & datas_stock.df$stock_number == stockNum];
+              rf;
+              if(length(rentaMoinsRf) != 0) {
+                value = value *(1 + rentaMoinsRf + rf);
+                compteur = compteur + 1;
+              }else{
+                cat("Missing value")
+                cat("\n")
+              }
+            }
+            return (value**(1/compteur) -1);
+          }
+        } = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month + 6, ]
           list_tmp <- c(P1$stock_number[row], 6 + month, year, "P1", data_row$return_rf + data_row$RiskFreeReturn);
           port_df[nrow(port_df) + 1,] <- list_tmp;
           data_row = datas_stock.df[datas_stock.df$stock_number == P10$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month + 6, ]
@@ -250,6 +315,25 @@ returnPortByTime = function(byear, eYear) {
 
 returnByPort = returnPortByTime(1984, 2005);
 
+
+#Apply the transaction fees on the P10-P1 portfolio returns 
+applyFees <- function(fees_percentage, bMonth, bYear, eMonth, eYear, rebalancingPeriod){
+  year = bYear;
+  month = bMonth;
+  while(year<eYear || (year == eYear && month<=eMonth)){
+    returnByPort$returnP10MinusP1[returnByPort$month == month & returnByPort$year == year] = returnByPort$returnP10MinusP1[returnByPort$month == month & returnByPort$year == year] * (1-fees_percentage)
+    if(month+rebalancingPeriod > 12) {
+      year = year + 1;
+      month = ((month + rebalancingPeriod)%%13) +1;
+    }else {
+      month = month + rebalancingPeriod;
+    }
+  }
+  return(returnByPort)
+}
+
+returnByPort <- applyFees(fees_percentage = 0.001, bMonth = 7,bYear = 1984, eMonth = 7 , eYear = 2004, rebalancingPeriod = 12)
+
 #-------------------------------------------------------------------------------------------------------------------
 #----------------------------------------------Mesures de performance-----------------------------------------------
 
@@ -282,12 +366,11 @@ SharpeRatio <- function(bYear, bMonth, eYear, eMonth){
 
 # La stratégie 6 mois 12 mois bne fonctionne pas très bien, titres de grandes tailles dans le portefeuille,
 # info s'intègre lus rapidement.
-MeasureSharpe <-SharpeRatio(1984, 7, 2005, 5)
+MeasureSharpe <-SharpeRatio(1984, 7, 2005, 6)
 
 
 #--------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------Alpha de Jensen et bet�---------------------------------------------
-
+#------------------------------------------------Alpha de Jensen et bet?---------------------------------------------
 
 colNamesRegression = c('year', 'month', 'returnP1-Rf', 'returnP10-Rf', 'returnP10MinusP1-Rf', 'RM-Rf', "SMB", "HML", "MOM");
 returnByPortRegression = data.frame(matrix(nrow=0, ncol=9));
