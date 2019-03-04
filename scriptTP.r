@@ -1,8 +1,7 @@
-setwd("C:\\Users\\Thomas\\Documents\\Cours\\3A\\Gestion Alternative");
+#setwd("C:\\Users\\Thomas\\Documents\\Cours\\3A\\Gestion Alternative");
 #setwd("/user/2/.base/cadicn/home/Documents/3A/GA");
-
+setwd("~/Desktop/GestionAlternative")
 datas <- read.csv(file='data_final_facteurs_fusionne_2018.csv',header=TRUE, sep=",");
-
 datas_year_month <- datas[, c(0:3)];
 
 datas_fm = data.frame(datas);
@@ -59,10 +58,14 @@ datas_stock.df = datas_fm[which(datas_fm$stock_number %in% prev_stock_number_uni
 datas_stock.df = datas_stock.df[which(datas_stock.df$year >= 1981), ];
 #datas_stock.df
 
+#Copmpute rentability 
 CalculeRenta <- function(bMonth, eMonth, bYear, eYear, stockNum) {
   value = 1;
   compteur = 0;
-  for (month in bMonth:eMonth) {
+  month = bMonth;
+  year = bYear;
+  
+  while(month != eMonth && year < eYear) {
     rentaMoinsRf = datas_stock.df$return_rf[datas_stock.df$month == month & datas_stock.df$year == bYear & datas_stock.df$stock_number == stockNum];
     rentaMoinsRf;
     rf = datas_stock.df$RiskFreeReturn[datas_stock.df$month == month & datas_stock.df$year == bYear & datas_stock.df$stock_number == stockNum];
@@ -72,31 +75,17 @@ CalculeRenta <- function(bMonth, eMonth, bYear, eYear, stockNum) {
       value = value *(1 + rentaMoinsRf + rf);
       compteur = compteur + 1;
     }
+    if(month %% 12 == 0){
+      month = month %% 12
+      year = year + 1
+    }
+    month = month + 1
   }
   return (value^(1/compteur) -1);
 } 
 
 #CalculeRenta(1, 12, 1982, 1985, 383);
-colNames = c("stock_number", "year", "return_6_month");
-renta6months.df = data.frame(matrix(nrow=0, ncol=3));
-colnames(portfolio.df) <- colNames;
-list_portefeuille = c();
-populateDataFrame <- function(){
-  port_df = data.frame(matrix(nrow=0, ncol=3));
-  colnames(port_df) <- colNames;
-  for (year in 1984:2005){
-    for (stock_number in  prev_stock_number_unique){
-      monthlyReturn = CalculeRentaOverYears(1, 6, year, year, stock_number);
-      #cat(monthlyReturn);
 
-        list_tmp <- c(stock_number, year, monthlyReturn);
-        
-        port_df[nrow(port_df) + 1,] <- list_tmp;
-      
-    }
-  }
-  return(port_df);
-}
 
 
 #Calcule de la rentabilité d'un titre entre les périodes données
@@ -122,10 +111,10 @@ CalculeRentaOverYears <- function(bMonth, eMonth, bYear, eYear, stockNum) {
       }
       if(month == 12) {
         year = year + 1;
-        month = 1;
-      }else {
-        month = month + 1;
+        month = month %% 12;
       }
+      month = month + 1;
+      
     }
     return (value**(1/compteur) -1);
   }else{#Good period and return over the same year.
@@ -146,14 +135,34 @@ CalculeRentaOverYears <- function(bMonth, eMonth, bYear, eYear, stockNum) {
   }
 }
 
+colNames = c("stock_number", "year", "return_6_month");
+renta6months.df = data.frame(matrix(nrow=0, ncol=3));
+colnames(portfolio.df) <- colNames;
+list_portefeuille = c();
+populateDataFrame <- function(bMonth, eMonth, bYear, eYear){
+  port_df = data.frame(matrix(nrow=0, ncol=3));
+  colnames(port_df) <- colNames;
+  for (year in bYear:eYear){
+    for (stock_number in  prev_stock_number_unique){
+      monthlyReturn = CalculeRentaOverYears(bMonth, eMonth, year, year, stock_number);
+      #cat(monthlyReturn);
+      
+      list_tmp <- c(stock_number, year, monthlyReturn);
+      
+      port_df[nrow(port_df) + 1,] <- list_tmp;
+      
+    }
+  }
+  return(port_df);
+}
 
-renta6months.df = populateDataFrame();
+renta6months.df = populateDataFrame(1,6,1984,2005);
 #Tri la dataframe
 sortedPortfolio <- renta6months.df[with(renta6months.df, order(renta6months.df$return_6_month)), ];
 
 sortedPortfolio1984 <- sortedPortfolio[sortedPortfolio$year == 1984, ];
 #Data frame pour stocker tous les portefeuilles P1 et P10 entre 1984 et 2005, composition à chaque mois et renta chaque année
-GetAllP = function() {
+GetAllP = function(bMonth, rebalancingPeriod) {
   port_df = data.frame(matrix(nrow=0, ncol=5));
   colNames = c("stock_number", "month", "year", "portfolio number", "return");
   colnames(port_df) <- colNames;
@@ -163,38 +172,48 @@ GetAllP = function() {
     P1 = sortedPortfolioyear[1:10,];
     deb = lenPort - 9;
     P10 = sortedPortfolioyear[deb:lenPort, ];
+
     for (row in 1:10) {
-      for (month in 1:6) {
-          data_row = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month + 6, ]
-          list_tmp <- c(P1$stock_number[row], 6 + month, year, "P1", data_row$return_rf + data_row$RiskFreeReturn);
-          port_df[nrow(port_df) + 1,] <- list_tmp;
-          data_row = datas_stock.df[datas_stock.df$stock_number == P10$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month + 6, ]
-          list_tmp_2 <- c(P10$stock_number[row], 6 + month, year, "P10", data_row$return_rf + data_row$RiskFreeReturn);
-          port_df[nrow(port_df) + 1,] <- list_tmp_2;
-      }
-      for (month in 7:12) {
-        data_row = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == year + 1 & datas_stock.df$month == month - 6, ]
-        list_tmp <- c(P1$stock_number[row], month - 6, year + 1, "P1", data_row$return_rf + data_row$RiskFreeReturn);
+      month = bMonth
+      nYear = year
+      counter = 0
+      while(counter < rebalancingPeriod){
+        data_row = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month, ]
+        list_tmp <- c(P1$stock_number[row], month, nYear, "P1", data_row$return_rf + data_row$RiskFreeReturn);
         port_df[nrow(port_df) + 1,] <- list_tmp;
-        data_row = datas_stock.df[datas_stock.df$stock_number == P10$stock_number[row] & datas_stock.df$year == year + 1 & datas_stock.df$month == month - 6, ]
-        list_tmp_2 <- c(P10$stock_number[row], month - 6, year + 1, "P10", data_row$return_rf + data_row$RiskFreeReturn);
+        data_row = datas_stock.df[datas_stock.df$stock_number == P10$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month, ]
+        list_tmp_2 <- c(P10$stock_number[row], month, nYear, "P10", data_row$return_rf + data_row$RiskFreeReturn);
         port_df[nrow(port_df) + 1,] <- list_tmp_2;
+        
+        counter = counter + 1
+        if(month %% 12 == 0){
+          nYear = nYear + 1
+          month = month %% 12
+        }
+        month = month + 1
       }
+
     }
   }
   return (port_df);
 }
 
-allP = GetAllP();
+allP = GetAllP(7, 12);
 test = allP[allP$portefolio == "P1"];
 colNames2 = c('Portfolio', 'Return', 'ReturnM', 'Returnf', 'stdevP', 'stdevM');
 portfolios = data.frame(matrix(nrow=0, ncol=6));
 
 #Calcule de la renta totale de P1, P10 et P10-P1
-returnPeriodPort = function(YearRange) {
+returnPeriodPort = function(YearRange, bMonth, rebalancingPeriod) {
   for(year in YearRange){
     #calcule renta de rf sur la periode entre juillet de year et juin de year + 1
-    dataSelectedPeriod = datas_stock.df[((datas_stock.df$year == year & datas_stock.df$month > 6) | (datas_stock.df$year == year + 1 & datas_stock.df$month < 7))  & datas_stock.df$stock_number == 559, ]
+    eMonth = (bMonth + rebalancingPeriod)%%12
+    nYear = year
+    if(eMonth == 0){
+      eMonth = 12
+      nYear = year + 1
+    }
+    dataSelectedPeriod = datas_stock.df[((datas_stock.df$year == year & datas_stock.df$month >= bMonth) | (datas_stock.df$year == nYear & datas_stock.df$month <= eMonth))  & datas_stock.df$stock_number == 559, ]
     returnf = mean(dataSelectedPeriod$RiskFreeReturn);
     returnm = mean(dataSelectedPeriod$Marketretrun);
     stdevRm = sd(dataSelectedPeriod$Marketretrun);
