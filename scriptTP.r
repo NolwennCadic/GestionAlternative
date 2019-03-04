@@ -178,17 +178,17 @@ GetAllP = function(bMonth, rebalancingPeriod) {
       nYear = year
       counter = 0
       while(counter < rebalancingPeriod){
-        data_row = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month, ]
+        data_row = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == nYear & datas_stock.df$month == month, ]
         list_tmp <- c(P1$stock_number[row], month, nYear, "P1", data_row$return_rf + data_row$RiskFreeReturn);
         port_df[nrow(port_df) + 1,] <- list_tmp;
-        data_row = datas_stock.df[datas_stock.df$stock_number == P10$stock_number[row] & datas_stock.df$year == year & datas_stock.df$month == month, ]
+        data_row = datas_stock.df[datas_stock.df$stock_number == P10$stock_number[row] & datas_stock.df$year == nYear & datas_stock.df$month == month, ]
         list_tmp_2 <- c(P10$stock_number[row], month, nYear, "P10", data_row$return_rf + data_row$RiskFreeReturn);
         port_df[nrow(port_df) + 1,] <- list_tmp_2;
         
         counter = counter + 1
         if(month %% 12 == 0){
           nYear = nYear + 1
-          month = month %% 12
+          month = 0
         }
         month = month + 1
       }
@@ -198,81 +198,51 @@ GetAllP = function(bMonth, rebalancingPeriod) {
   return (port_df);
 }
 
-allP = GetAllP(7, 12);
-test = allP[allP$portefolio == "P1"];
+
+
 colNames2 = c('Portfolio', 'Return', 'ReturnM', 'Returnf', 'stdevP', 'stdevM');
-portfolios = data.frame(matrix(nrow=0, ncol=6));
-
-#Calcule de la renta totale de P1, P10 et P10-P1
-returnPeriodPort = function(YearRange, bMonth, rebalancingPeriod) {
-  for(year in YearRange){
-    #calcule renta de rf sur la periode entre juillet de year et juin de year + 1
-    eMonth = (bMonth + rebalancingPeriod)%%12
-    nYear = year
-    if(eMonth == 0){
-      eMonth = 12
-      nYear = year + 1
-    }
-    dataSelectedPeriod = datas_stock.df[((datas_stock.df$year == year & datas_stock.df$month >= bMonth) | (datas_stock.df$year == nYear & datas_stock.df$month <= eMonth))  & datas_stock.df$stock_number == 559, ]
-    returnf = mean(dataSelectedPeriod$RiskFreeReturn);
-    returnm = mean(dataSelectedPeriod$Marketretrun);
-    stdevRm = sd(dataSelectedPeriod$Marketretrun);
-    pYearReturn = as.numeric(allP$return[allP$`portfolio number`=='P1' & allP$year==year & allP$month==bMonth +1]);
-    returnP = mean(pYearReturn);
-    stdevP = sd(pYearReturn);
-    list_tmp = c(year, returnP, returnm, returnf, stdevP, stdevRm);
-    portfolios[nrow(portfolios) + 1,] <- list_tmp;
-  }
-}
-
-returnPeriodPortByYear = returnPeriodPort(1984:1984, 6, 12);
 
 
 
-returnPortByTime = function(byear, eYear) {
+returnPortByTime = function(bYear, eYear, bMonth, eMonth, rebalancingPeriod) {
   colNames3 = c('year', 'month', 'returnP1', 'returnP10', 'returnP10MinusP1', 'RM', 'RF');
   returnByPort = data.frame(matrix(nrow=0, ncol=7));
   colnames(returnByPort) <- colNames3;
-  for (month in 7:12) {
-    Rm <- datas_stock.df$Marketretrun[datas_stock.df$year == byear & datas_stock.df$month==month & datas_stock.df$stock_number==559]
-    Rf <- datas_stock.df$RiskFreeReturn[datas_stock.df$year == byear & datas_stock.df$month==month & datas_stock.df$stock_number==559]
-    returnP1 = mean(as.numeric(allP$return[allP$`portfolio number`=='P1'& allP$year==byear & allP$month==month]));
-    returnP10 = mean(as.numeric(allP$return[allP$`portfolio number`=='P10'& allP$year== byear & allP$month==month]));
-    returnP10minusP1 = returnP10 - returnP1;
-    list_tmp <- c(byear, month, returnP1, returnP10, returnP10minusP1, Rm, Rf);
-    returnByPort[nrow(returnByPort) + 1, ] <- list_tmp;
-  }
-  endYear = eYear - 1
-  beginYear = byear + 1;
-  for (y in beginYear:endYear) {
-    for (month in 1:12) {
-      Rm <- datas_stock.df$Marketretrun[datas_stock.df$year == y & datas_stock.df$month==month & datas_stock.df$stock_number==559]
-      Rf <- datas_stock.df$RiskFreeReturn[datas_stock.df$year == y & datas_stock.df$month==month & datas_stock.df$stock_number==559]
-      returnP1 = mean(as.numeric(allP$return[allP$`portfolio number`=='P1'& allP$year==y & allP$month==month]));
-      returnP10 = mean(as.numeric(allP$return[allP$`portfolio number`=='P10'& allP$year==y & allP$month==month]));
+  allP = GetAllP(bMonth, rebalancingPeriod);
+  year = bYear
+  month = bMonth
+  while (year != eYear ){
+    count = 0
+    month = bMonth
+    while( count < rebalancingPeriod){
+      Rm <- datas_stock.df$Marketretrun[datas_stock.df$year == year & datas_stock.df$month==month & datas_stock.df$stock_number==559]
+      Rf <- datas_stock.df$RiskFreeReturn[datas_stock.df$year == year & datas_stock.df$month==month & datas_stock.df$stock_number==559]
+      returnP1 = mean(as.numeric(allP$return[allP$`portfolio number`=='P1'& allP$year==year & allP$month==month]));
+      returnP10 = mean(as.numeric(allP$return[allP$`portfolio number`=='P10'& allP$year== year & allP$month==month]));
       returnP10minusP1 = returnP10 - returnP1;
-      list_tmp <- c(y, month, returnP1, returnP10, returnP10minusP1, Rm, Rf);
+      list_tmp <- c(year, month, returnP1, returnP10, returnP10minusP1, Rm, Rf);
       returnByPort[nrow(returnByPort) + 1, ] <- list_tmp;
+      count = count + 1
+      if(month %% 12 == 0){
+        year = year + 1
+        month = 0
+      }
+      
+      month = month + 1
     }
   }
-  for (month in 1:6) {
-    Rm <- datas_stock.df$Marketretrun[datas_stock.df$year == eYear & datas_stock.df$month==month & datas_stock.df$stock_number==559]
-    Rf <- datas_stock.df$RiskFreeReturn[datas_stock.df$year == eYear & datas_stock.df$month==month & datas_stock.df$stock_number==559]
-    returnP1 = mean(as.numeric(allP$return[allP$`portfolio number`=='P1'& allP$year==eYear & allP$month==month]));
-    returnP10 = mean(as.numeric(allP$return[allP$`portfolio number`=='P10'& allP$year== eYear & allP$month==month]));
-    returnP10minusP1 = returnP10 - returnP1;
-    list_tmp <- c(eYear, month, returnP1, returnP10, returnP10minusP1, Rm, Rf);
-    returnByPort[nrow(returnByPort) + 1, ] <- list_tmp;
-  }
+
+
   return (returnByPort)
 }
 
-returnByPort = returnPortByTime(1984, 2005);
+
 
 #-------------------------------------------------------------------------------------------------------------------
 #----------------------------------------------Mesures de performance-----------------------------------------------
 
-SharpeRatio <- function(bYear, bMonth, eYear, eMonth){
+SharpeRatio <- function(bYear, bMonth, eYear, eMonth, rebalancingPeriod){
+  returnByPort = returnPortByTime(bYear, eYear, bMonth, eMonth, rebalancingPeriod);
   dataSelectedPeriod = returnByPort[(returnByPort$year == bYear & returnByPort$month >= bMonth) | (returnByPort$year < eYear) |(returnByPort$year == eYear & returnByPort$month <= eMonth),]
   returnf = mean(dataSelectedPeriod$RF);
   returnm = mean(dataSelectedPeriod$RM);
@@ -301,7 +271,12 @@ SharpeRatio <- function(bYear, bMonth, eYear, eMonth){
 
 # La stratégie 6 mois 12 mois bne fonctionne pas très bien, titres de grandes tailles dans le portefeuille,
 # info s'intègre lus rapidement.
-MeasureSharpe <-SharpeRatio(1984, 7, 2005, 5)
+MeasureSharpe <-SharpeRatio(1984, 7, 2005, 6, 12)
+
+
+
+#--------------------------------------------------------------------------------------------------------------------
+#---------------------------------------Sharp ration for different rebalancing period--------------------------------
 
 
 #--------------------------------------------------------------------------------------------------------------------
