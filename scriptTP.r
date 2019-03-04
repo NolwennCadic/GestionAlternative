@@ -269,11 +269,146 @@ SharpeRatio <- function(bYear, bMonth, eYear, eMonth){
   SharpeP1 <- (P1Return - returnf)/stdevP1;
   SharpeP10 <- (P10Return - returnf)/stdevP10;
   SharpeP10MinusP1 <- (P10MinusP1Return - returnf)/stdevP10MinusP1;
-  list <- c(SharpeRM, SharpeP10, SharpeP1, SharpeP10MinusP1);
-  return(list);
+  
+  colNamesSharpe = c('Sharpe Market', 'Sharpe P1', 'Sharpe P10', 'Sharpe P10 Minus P1');
+  Sharpe = data.frame(matrix(nrow=0, ncol=4));
+  colnames(Sharpe) <- colNamesSharpe;
+  list <- c(SharpeRM, SharpeP1, SharpeP10, SharpeP10MinusP1);
+  Sharpe[nrow(Sharpe) + 1, ] <- list;
+  
+  return(Sharpe);
 }
 
 
 # La stratégie 6 mois 12 mois bne fonctionne pas très bien, titres de grandes tailles dans le portefeuille,
 # info s'intègre lus rapidement.
-list <-SharpeRatio(1984, 7, 2005, 5)
+MeasureSharpe <-SharpeRatio(1984, 7, 2005, 5)
+
+
+#--------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------Alpha de Jensen et bet�---------------------------------------------
+
+
+colNamesRegression = c('year', 'month', 'returnP1-Rf', 'returnP10-Rf', 'returnP10MinusP1-Rf', 'RM-Rf', "SMB", "HML", "MOM");
+returnByPortRegression = data.frame(matrix(nrow=0, ncol=9));
+colnames(returnByPortRegression) <- colNamesRegression;
+
+for(i in 1:nrow(returnByPort))
+{
+  year <- returnByPort$year[i];
+  month <- returnByPort$month[i];
+  temp <- c(year, month,
+            returnByPort$`returnP1`[i]-returnByPort$RF[i],
+            returnByPort$`returnP10`[i]-returnByPort$RF[i],
+            returnByPort$`returnP10MinusP1`[i]-returnByPort$RF[i],
+            returnByPort$`RM`[i]-returnByPort$RF[i], 
+            datas_fm$SmallMinusBig[datas_fm$year==year & datas_fm$month==month][1],
+            datas_fm$HighMinusLow[datas_fm$year==year & datas_fm$month==month][1], 
+            datas_fm$MomentumFactor[datas_fm$year==year & datas_fm$month==month][1]);
+  returnByPortRegression[nrow(returnByPortRegression) + 1, ] <- temp;
+}
+
+epsilon <- 0.05
+
+#Simple Measures ie Jensen Alpha & Treynor
+SimpleRegressionP1 <- lm(returnByPortRegression$`returnP1-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP1<-summary(SimpleRegressionP1)
+AlphaP1NotNull <- SimpleSummaryP1$coefficient[2,4]  <= (epsilon/2)
+
+SimpleRegressionP10 <- lm(returnByPortRegression$`returnP10-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP10<-summary(SimpleRegressionP10)
+AlphaP10NotNull <- SimpleSummaryP10$coefficient[2,4]  <= (epsilon/2)
+
+SimpleRegressionP10MinusP1 <- lm(returnByPortRegression$`returnP10MinusP1-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP10MinusP1<-summary(SimpleRegressionP10MinusP1)
+AlphaP10MinusP1NotNull <- SimpleSummaryP10MinusP1$coefficient[2,4]  <= (epsilon/2)
+
+ColNamesMeasures <- c("PortfolioName",  "Beta", "Jensen Alpha","Significativ Alpha", "Treynor");
+SimpleMeasures <- data.frame(matrix(nrow=0, ncol=5));
+colnames(SimpleMeasures) <- ColNamesMeasures;
+
+list_tmp <- c("P1",
+              SimpleRegressionP1$coefficients[2],
+              SimpleRegressionP1$coefficients[1],
+              AlphaP1NotNull,
+              mean(returnByPortRegression$`returnP1-Rf`)/SimpleRegressionP1$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10",
+              SimpleRegressionP10$coefficients[2],
+              SimpleRegressionP10$coefficients[1],
+              AlphaP10NotNull,
+              mean(returnByPortRegression$`returnP10-Rf`)/SimpleRegressionP10$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10MinusP1",
+              SimpleRegressionP10MinusP1$coefficients[2],
+              SimpleRegressionP10MinusP1$coefficients[1],
+              AlphaP10MinusP1NotNull,
+              mean(returnByPortRegression$`returnP10MinusP1-Rf`)/SimpleRegressionP10MinusP1$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("Market",
+              1,
+              0,
+              TRUE,
+              mean(returnByPortRegression$`RM-Rf`))
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+#Complex Measures ie Alpha Carhart-Fama&French model.
+
+ComplexRegressionP1 <- lm(returnByPortRegression$`returnP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP1<-summary(ComplexRegressionP1)
+ComplexAlphaP1NotNull <- ComplexSummaryP1$coefficient[2,4]  <= (epsilon/2)
+
+ComplexRegressionP10 <- lm(returnByPortRegression$`returnP10-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP10<-summary(ComplexRegressionP10)
+ComplexAlphaP10NotNull <- ComplexSummaryP10$coefficient[2,4]  <= (epsilon/2)
+
+ComplexRegressionP10MinusP1 <- lm(returnByPortRegression$`returnP10MinusP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP10MinusP1<-summary(ComplexRegressionP10MinusP1)
+ComplexAlphaP10MinusP1NotNull <- ComplexSummaryP10MinusP1$coefficient[2,4]  <= (epsilon/2)
+
+ColNamesComplexMeasures <- c("PortfolioName", "Alpha Jensen", "Significativ Alpha Jensen", "Alpha Carhart", "Significativ Alpha Carhart", "Beta Market" ,"Beta SMB", "Beta HML", "Beta MOM");
+ComplexMeasures <- data.frame(matrix(nrow=0, ncol=9));
+colnames(ComplexMeasures) <- ColNamesComplexMeasures;
+
+list_tmp <- c("P1",
+              SimpleRegressionP1$coefficients[1],
+              AlphaP1NotNull,
+              ComplexRegressionP1$coefficients[1],
+              ComplexAlphaP1NotNull,
+              ComplexRegressionP1$coefficients[2],
+              ComplexRegressionP1$coefficients[3],
+              ComplexRegressionP1$coefficients[4],
+              ComplexRegressionP1$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10",
+              SimpleRegressionP10$coefficients[1],
+              ComplexAlphaP10NotNull,
+              ComplexRegressionP10$coefficients[1],
+              ComplexAlphaP10NotNull,
+              ComplexRegressionP10$coefficients[2],
+              ComplexRegressionP10$coefficients[3],
+              ComplexRegressionP10$coefficients[4],
+              ComplexRegressionP10$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10MinusP1",
+              SimpleRegressionP10MinusP1$coefficients[1],
+              AlphaP10MinusP1NotNull,
+              ComplexRegressionP10MinusP1$coefficients[1],
+              ComplexAlphaP10MinusP1NotNull,
+              ComplexRegressionP10MinusP1$coefficients[2],
+              ComplexRegressionP10MinusP1$coefficients[3],
+              ComplexRegressionP10MinusP1$coefficients[4],
+              ComplexRegressionP10MinusP1$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
