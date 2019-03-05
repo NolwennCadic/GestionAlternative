@@ -1,6 +1,11 @@
 #setwd("C:\\Users\\Thomas\\Documents\\Cours\\3A\\Gestion Alternative");
+
 #setwd("/user/2/.base/cadicn/home/Documents/3A/GA");
 setwd("~/Desktop/GestionAlternative")
+
+#setwd("/user/5/lelettyt/Documents/3A/GestionAltern/GestionAlternative");
+
+
 datas <- read.csv(file='data_final_facteurs_fusionne_2018.csv',header=TRUE, sep=",");
 datas_year_month <- datas[, c(0:3)];
 
@@ -14,13 +19,13 @@ stock_number_unique = prev_stock_number_unique;
 
 #Determine les 100 titres à analyser 
 #y = 2004;
-#while (length(prev_stock_number_unique) >= 100 && y > 1966) {
-#  stock_number = datas_fm[which(datas_fm$year == y), ];
-"  stock_number_unique = unique(stock_number$stock_number);
+while (length(prev_stock_number_unique) >= 100 && y > 1966) {
+  stock_number = datas_fm[which(datas_fm$year == y), ];
+  stock_number_unique = unique(stock_number$stock_number);
   prev_stock_number_unique = intersect(prev_stock_number_unique, stock_number_unique);
   length(prev_stock_number_unique)
   y = y - 1;
-}"
+}
 
 
 check_values <- function(list_stock, year) {
@@ -84,7 +89,6 @@ CalculeRenta <- function(bMonth, eMonth, bYear, eYear, stockNum) {
   return (value^(1/compteur) -1);
 } 
 
-#CalculeRenta(1, 12, 1982, 1985, 383);
 
 
 
@@ -93,7 +97,7 @@ CalculeRentaOverYears <- function(bMonth, eMonth, bYear, eYear, stockNum) {
   value = 1;
   compteur = 0;
   if(eYear < bYear || (eYear == bYear && bMonth > eMonth)) { #Error period.
-    cat("Error return period");
+    cat("Error return period ", bMonth, " ", eMonth, " ", bYear, " ", eYear, " \n");
     return(0);
   }
   if(eYear > bYear) {#Good period and return over different years.
@@ -135,16 +139,30 @@ CalculeRentaOverYears <- function(bMonth, eMonth, bYear, eYear, stockNum) {
   }
 }
 
-colNames = c("stock_number", "year", "return_6_month");
+colNames = c("stock_number", "year", "return_on_period");
 renta6months.df = data.frame(matrix(nrow=0, ncol=3));
 colnames(portfolio.df) <- colNames;
 list_portefeuille = c();
-populateDataFrame <- function(bMonth, eMonth, bYear, eYear){
+
+
+populateDataFrame <- function(bMonth, eMonth, bYear, eYear, constationPeriod, rebalancingPeriod){
   port_df = data.frame(matrix(nrow=0, ncol=3));
   colnames(port_df) <- colNames;
-  for (year in bYear:eYear){
+  year = bYear
+  month = bMonth
+  endMonth = month + constationPeriod - 1
+  newYear = year
+  if((endMonth)>12){
+    endMonth = endMonth %% 13 + 1 
+    newYear = newYear + 1
+  }
+  while(year != eYear || endMonth != eMonth){
+    cat("year : ", year, "\n")
     for (stock_number in  prev_stock_number_unique){
-      monthlyReturn = CalculeRentaOverYears(bMonth, eMonth, year, year, stock_number);
+
+
+      
+      monthlyReturn = CalculeRentaOverYears(month, endMonth, year, newYear, stock_number);
       #cat(monthlyReturn);
       
       list_tmp <- c(stock_number, year, monthlyReturn);
@@ -152,47 +170,72 @@ populateDataFrame <- function(bMonth, eMonth, bYear, eYear){
       port_df[nrow(port_df) + 1,] <- list_tmp;
       
     }
+    
+    month = endMonth + rebalancingPeriod - constationPeriod + 1
+    endMonth = month + constationPeriod - 1
+    cat("month : " , month , "\n")
+    cat("endmonth : " , endMonth , "\n")
+    if((endMonth)>12){
+      endMonth = endMonth %% 13 + 1 
+    }
+
+    if(month > 12){
+      month = month %% 13 + 1
+      year = year + 1
+      newYear = year
+
+    }
   }
   return(port_df);
 }
 
-renta6months.df = populateDataFrame(1,6,1984,2005);
+renta6months.df = populateDataFrame(1, 6, 1984, 2005, 6, 12);
 #Tri la dataframe
-sortedPortfolio <- renta6months.df[with(renta6months.df, order(renta6months.df$return_6_month)), ];
+sortedPortfolio <- renta6months.df[with(renta6months.df, order(renta6months.df$return_on_month)), ];
 
 sortedPortfolio1984 <- sortedPortfolio[sortedPortfolio$year == 1984, ];
 #Data frame pour stocker tous les portefeuilles P1 et P10 entre 1984 et 2005, composition à chaque mois et renta chaque année
-GetAllP = function(bMonth, rebalancingPeriod) {
+GetAllP = function(bYear, eYear, bMonth, eMonth, rebalancingPeriod) {
   port_df = data.frame(matrix(nrow=0, ncol=5));
   colNames = c("stock_number", "month", "year", "portfolio number", "return");
   colnames(port_df) <- colNames;
-  for (year in 1984:2004) {
+  year = bYear
+
+  month = bMonth
+  while(year != eYear) {
     sortedPortfolioyear <- sortedPortfolio[sortedPortfolio$year == year, ];
     lenPort = nrow(sortedPortfolioyear);
     P1 = sortedPortfolioyear[1:10,];
     deb = lenPort - 9;
     P10 = sortedPortfolioyear[deb:lenPort, ];
 
+    cat("month : ", month, "year : ", year, "\n")
     for (row in 1:10) {
-      month = bMonth
-      nYear = year
+      nMonth = month
       counter = 0
+      nYear = year
       while(counter < rebalancingPeriod){
-        data_row = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == nYear & datas_stock.df$month == month, ]
-        list_tmp <- c(P1$stock_number[row], month, nYear, "P1", data_row$return_rf + data_row$RiskFreeReturn);
+        data_row = datas_stock.df[datas_stock.df$stock_number == P1$stock_number[row] & datas_stock.df$year == nYear & datas_stock.df$month == nMonth, ]
+        list_tmp <- c(P1$stock_number[row], nMonth, nYear, "P1", data_row$return_rf + data_row$RiskFreeReturn);
         port_df[nrow(port_df) + 1,] <- list_tmp;
-        data_row = datas_stock.df[datas_stock.df$stock_number == P10$stock_number[row] & datas_stock.df$year == nYear & datas_stock.df$month == month, ]
-        list_tmp_2 <- c(P10$stock_number[row], month, nYear, "P10", data_row$return_rf + data_row$RiskFreeReturn);
+
+        data_row = datas_stock.df[datas_stock.df$stock_number == P10$stock_number[row] & datas_stock.df$year == nYear & datas_stock.df$month == nMonth, ]
+        list_tmp_2 <- c(P10$stock_number[row], nMonth, nYear, "P10", data_row$return_rf + data_row$RiskFreeReturn);
         port_df[nrow(port_df) + 1,] <- list_tmp_2;
         
-        counter = counter + 1
-        if(month %% 12 == 0){
-          nYear = nYear + 1
-          month = 0
-        }
-        month = month + 1
-      }
 
+        counter = counter + 1
+        if(nMonth == 12){
+          nYear = nYear + 1
+          nMonth = 0
+        }
+        nMonth = nMonth + 1
+      }
+    }
+    month = month + rebalancingPeriod 
+    if (month > 12){
+      year = year + 1
+      month = month %% 13 + 1
     }
   }
   return (port_df);
@@ -202,23 +245,30 @@ GetAllP = function(bMonth, rebalancingPeriod) {
 
 colNames2 = c('Portfolio', 'Return', 'ReturnM', 'Returnf', 'stdevP', 'stdevM');
 
-
+allP = GetAllP(1984, 2005, 7, 6, 12);
 
 returnPortByTime = function(bYear, eYear, bMonth, eMonth, rebalancingPeriod) {
   colNames3 = c('year', 'month', 'returnP1', 'returnP10', 'returnP10MinusP1', 'RM', 'RF');
   returnByPort = data.frame(matrix(nrow=0, ncol=7));
   colnames(returnByPort) <- colNames3;
-  allP = GetAllP(bMonth, rebalancingPeriod);
+  allP = GetAllP(bYear, eYear, bMonth, eMonth, rebalancingPeriod);
+  print(allP[1:10, ])
   year = bYear
   month = bMonth
+
   while (year != eYear ){
     count = 0
-    month = bMonth
+    cat("year : ", year, "\n")
+    cat("first month : ", month, "\n")
+
     while( count < rebalancingPeriod){
       Rm <- datas_stock.df$Marketretrun[datas_stock.df$year == year & datas_stock.df$month==month & datas_stock.df$stock_number==559]
       Rf <- datas_stock.df$RiskFreeReturn[datas_stock.df$year == year & datas_stock.df$month==month & datas_stock.df$stock_number==559]
       returnP1 = mean(as.numeric(allP$return[allP$`portfolio number`=='P1'& allP$year==year & allP$month==month]));
       returnP10 = mean(as.numeric(allP$return[allP$`portfolio number`=='P10'& allP$year== year & allP$month==month]));
+      cat("month : ", month, "\n")
+      cat("returnP1 : ", returnP1 , "\n")
+      cat("returnP10 : ", returnP10, "\n")
       returnP10minusP1 = returnP10 - returnP1;
       list_tmp <- c(year, month, returnP1, returnP10, returnP10minusP1, Rm, Rf);
       returnByPort[nrow(returnByPort) + 1, ] <- list_tmp;
@@ -237,12 +287,30 @@ returnPortByTime = function(bYear, eYear, bMonth, eMonth, rebalancingPeriod) {
 }
 
 
+returnByPort = returnPortByTime(1984, 2005, 7, 6, 12);
+
+#Apply the transaction fees on the P10-P1 portfolio returns 
+applyFees <- function(fees_percentage, bMonth, bYear, eMonth, eYear, rebalancingPeriod){
+  year = bYear;
+  month = bMonth;
+  while(year<eYear || (year == eYear && month<=eMonth)){
+    returnByPort$returnP10MinusP1[returnByPort$month == month & returnByPort$year == year] = returnByPort$returnP10MinusP1[returnByPort$month == month & returnByPort$year == year] * (1-fees_percentage)
+    if(month+rebalancingPeriod > 12) {
+      year = year + 1;
+      month = ((month + rebalancingPeriod)%%13) +1;
+    }else {
+      month = month + rebalancingPeriod;
+    }
+  }
+  return(returnByPort)
+}
+
+returnByPort <- applyFees(fees_percentage = 0.001, bMonth = 7,bYear = 1984, eMonth = 7 , eYear = 2004, rebalancingPeriod = 12)
 
 #-------------------------------------------------------------------------------------------------------------------
 #----------------------------------------------Mesures de performance-----------------------------------------------
 
 SharpeRatio <- function(bYear, bMonth, eYear, eMonth, rebalancingPeriod){
-  returnByPort = returnPortByTime(bYear, eYear, bMonth, eMonth, rebalancingPeriod);
   dataSelectedPeriod = returnByPort[(returnByPort$year == bYear & returnByPort$month >= bMonth) | (returnByPort$year < eYear) |(returnByPort$year == eYear & returnByPort$month <= eMonth),]
   returnf = mean(dataSelectedPeriod$RF);
   returnm = mean(dataSelectedPeriod$RM);
@@ -271,14 +339,19 @@ SharpeRatio <- function(bYear, bMonth, eYear, eMonth, rebalancingPeriod){
 
 # La stratégie 6 mois 12 mois bne fonctionne pas très bien, titres de grandes tailles dans le portefeuille,
 # info s'intègre lus rapidement.
-MeasureSharpe <-SharpeRatio(1984, 7, 2005, 6, 12)
+MeasureSharp <-SharpeRatio(1984, 7, 2005, 6, 12)
 
 
 
 #--------------------------------------------------------------------------------------------------------------------
 #---------------------------------------Sharp ration for different rebalancing period--------------------------------
+renta3months.df = populateDataFrame(bMonth = 1, eMonth = 12, bYear = 1984, eYear = 2004, constationPeriod = 3, rebalancingPeriod = 3);
+#Tri la dataframe
+sortedPortfolio <- renta3months.df[with(renta3months.df, order(renta3months.df$return_on_month)), ];
 
-
+returnByPort = returnPortByTime(1984, 2005, 4, 3, 3);
+returnByPort <- applyFees(fees_percentage = 0.001, bMonth = 4, bYear = 1984, eMonth = 3, eYear = 2004, rebalancingPeriod = 3)
+MeasureSharpe3 <-SharpeRatio(1984, 4, 2005, 3, 3)
 #--------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------Alpha de Jensen et bet?---------------------------------------------
 
