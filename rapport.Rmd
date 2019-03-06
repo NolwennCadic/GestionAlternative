@@ -58,7 +58,7 @@ Dans un premier temps, nous nous sommes intéressés à la stratégie momentum q
   \item P10 - P1: Achat du portefeuille P10 et vente du portefeuille P1
 \end{itemize}
 
-Pour constituer les portefeuilles, nous avons calculé les rentabilités mensuelles de chaque titre sur la periode de 6 mois. Une fois les titres placés en portefeuille, nous avons calculé la rentabilé sur 12 mois de chaque titre e portefeuille puis de l'ensemble du portefeuille. Nous avons effectué cela entre 1984 et 2004.
+Pour constituer les portefeuilles, nous avons calculé les rentabilités de chaque titre sur la periode de 6 mois, afin de déterminer les titres à mettre dans les portefeuilles P1 et P10. Une fois les titres placés en portefeuille, nous avons calculé la rentabilé sur 12 mois de chaque titre du portefeuille puis de l'ensemble du portefeuille. Nous avons effectué cela entre 1984 et 2004.
 
 ```{r echo=FALSE}
 #Nouvelle data frame avec les données des 100 titres entre 1981 et 2005
@@ -185,7 +185,7 @@ populateDataFrame <- function(bMonth, eMonth, bYear, eYear, constationPeriod, re
 }
 
 renta6months.df = populateDataFrame(1, 6, 1984, 2005, 6, 12);
-#Tri la dataframe
+#Trie la dataframe
 sortedPortfolio <- renta6months.df[with(renta6months.df, order(renta6months.df$return_on_period)), ];
 
 
@@ -358,11 +358,308 @@ MeasureSharp
 
 Notons $S_{M}$ le ratio de sharpe du marché, $S_{P1}$ le ratio de sharpe du portefeuille P1, $S_{P10}$ le ratio de sharpe du portefeuille P10 et $S_{P10\_P1}$ le ratio de sharpe du portefeuille P10 moins P1.
 Nous remarquons que $S_{P10} < S_{P1}$. Cela n'est pas surprenant, puisque le portefeuille P1 est constitué des titres ayant le moins bien performé au cours des 6 mois précédents sa constitution. On peut s'attendre à ce que ces titres continuent de mal performer par l'effet momentum, et qu'il ne fassent pas mieux que le marché.
-On remarque également que $S_{P1} < S_{M}$. C'est plus surprenant et remet en doute notre stratégie momentum. Cela peut s'expliquer par le fait que notre période de rebalancement et notre période de constation n'est pas adaptée. L'information des titres s'intègre rapidement dans les prix, notre échantillon est certainement composé d'entreprises de grandes tailles pour lesquelles l'information est plus rapidement intégrée dans les prix.
-On peut également se demander si la mesure du ratio de sharpe est pertinente dans la mesure où nos portefeuilles ne sont composés que de 10 titres. Ils ne sont donc pas forcément bien diversifiés et ont un risque supérieur au risque du marché.
+On remarque également que $S_{P1} < S_{M}$. C'est plus surprenant et remet en doute notre stratégie momentum. Cela peut s'expliquer par le fait que notre période de rebalancement et notre période de constation ne sont pas adaptées. L'information des titres s'intègre rapidement dans les prix, notre échantillon est certainement composé d'entreprises de grandes tailles pour lesquelles l'information est plus rapidement intégrée dans les prix.
+Enfin $S_{P10\_P1} < S_{M}$, qui peut être expliqué par la taille des entreprises dans le portefeuille.
+On peut également se demander si la mesure du ratio de sharpe est pertinente dans la mesure où notre portefeuilles n'est composé que de 20 titres. Il n'est pas forcément bien diversifié et a un risque supérieur au risque du marché.
 Enfin, nous avons inclus des frais de transaction, ce qui diminue les rentabilités et donc le ratio de Sharpe.
 
 ### L'alpha de Jensen
 
+Nous effectuons la regression $R_{P_{P10\_P1}} - R_f \sim \alpha + \beta * (R_m - R_f)$ pour trouver le alpha de Jensen (et également le $\beta$ que nous exploiterons plus loin dans ce rapport)
 ```{r echo=FALSE}
+colNamesRegression = c('year', 'month', 'returnP1-Rf', 'returnP10-Rf', 'returnP10MinusP1-Rf', 'RM-Rf', "SMB", "HML", "MOM");
+returnByPortRegression = data.frame(matrix(nrow=0, ncol=9));
+colnames(returnByPortRegression) <- colNamesRegression;
+
+for(i in 1:nrow(returnByPort))
+{
+  year <- returnByPort$year[i];
+  month <- returnByPort$month[i];
+  temp <- c(year, month,
+            returnByPort$`returnP1`[i]-returnByPort$RF[i],
+            returnByPort$`returnP10`[i]-returnByPort$RF[i],
+            returnByPort$`returnP10MinusP1`[i]-returnByPort$RF[i],
+            returnByPort$`RM`[i]-returnByPort$RF[i], 
+            datas_fm$SmallMinusBig[datas_fm$year==year & datas_fm$month==month][1],
+            datas_fm$HighMinusLow[datas_fm$year==year & datas_fm$month==month][1], 
+            datas_fm$MomentumFactor[datas_fm$year==year & datas_fm$month==month][1]);
+  returnByPortRegression[nrow(returnByPortRegression) + 1, ] <- temp;
+}
+
+epsilon <- 0.05
+
+#Simple Measures ie Jensen Alpha & Treynor
+SimpleRegressionP1 <- lm(returnByPortRegression$`returnP1-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP1<-summary(SimpleRegressionP1)
+AlphaP1NotNull <- SimpleSummaryP1$coefficient[1,4]  <= (epsilon/2)
+
+SimpleRegressionP10 <- lm(returnByPortRegression$`returnP10-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP10<-summary(SimpleRegressionP10)
+AlphaP10NotNull <- SimpleSummaryP10$coefficient[1,4]  <= (epsilon/2)
+
+SimpleRegressionP10MinusP1 <- lm(returnByPortRegression$`returnP10MinusP1-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP10MinusP1<-summary(SimpleRegressionP10MinusP1)
+AlphaP10MinusP1NotNull <- SimpleSummaryP10MinusP1$coefficient[2,4]  <= (epsilon/2)
+
+ColNamesMeasures <- c("PortfolioName",  "Beta", "Jensen Alpha","Significativ Alpha", "Treynor");
+SimpleMeasures <- data.frame(matrix(nrow=0, ncol=5));
+colnames(SimpleMeasures) <- ColNamesMeasures;
+
+list_tmp <- c("P1",
+              SimpleRegressionP1$coefficients[2],
+              SimpleRegressionP1$coefficients[1],
+              AlphaP1NotNull,
+              mean(returnByPortRegression$`returnP1-Rf`)/SimpleRegressionP1$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10",
+              SimpleRegressionP10$coefficients[2],
+              SimpleRegressionP10$coefficients[1],
+              AlphaP10NotNull,
+              mean(returnByPortRegression$`returnP10-Rf`)/SimpleRegressionP10$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10MinusP1",
+              SimpleRegressionP10MinusP1$coefficients[2],
+              SimpleRegressionP10MinusP1$coefficients[1],
+              AlphaP10MinusP1NotNull,
+              mean(returnByPortRegression$`returnP10MinusP1-Rf`)/SimpleRegressionP10MinusP1$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("Market",
+              1,
+              0,
+              TRUE,
+              mean(returnByPortRegression$`RM-Rf`))
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+#Complex Measures ie Alpha Carhart-Fama&French model.
+
+ComplexRegressionP1 <- lm(returnByPortRegression$`returnP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP1<-summary(ComplexRegressionP1)
+ComplexAlphaP1NotNull <- ComplexSummaryP1$coefficient[1,4]  <= (epsilon/2)
+
+ComplexRegressionP10 <- lm(returnByPortRegression$`returnP10-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP10<-summary(ComplexRegressionP10)
+ComplexAlphaP10NotNull <- ComplexSummaryP10$coefficient[1,4]  <= (epsilon/2)
+
+ComplexRegressionP10MinusP1 <- lm(returnByPortRegression$`returnP10MinusP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP10MinusP1<-summary(ComplexRegressionP10MinusP1)
+ComplexAlphaP10MinusP1NotNull <- ComplexSummaryP10MinusP1$coefficient[1,4]  <= (epsilon/2)
+
+ColNamesComplexMeasures <- c("PortfolioName", "Alpha Jensen", "Significativ Alpha Jensen", "Alpha Carhart", "Significativ Alpha Carhart", "Beta Market" ,"Beta SMB", "Beta HML", "Beta MOM");
+ComplexMeasures <- data.frame(matrix(nrow=0, ncol=9));
+colnames(ComplexMeasures) <- ColNamesComplexMeasures;
+
+list_tmp <- c("P1",
+              SimpleRegressionP1$coefficients[1],
+              AlphaP1NotNull,
+              ComplexRegressionP1$coefficients[1],
+              ComplexAlphaP1NotNull,
+              ComplexRegressionP1$coefficients[2],
+              ComplexRegressionP1$coefficients[3],
+              ComplexRegressionP1$coefficients[4],
+              ComplexRegressionP1$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10",
+              SimpleRegressionP10$coefficients[1],
+              ComplexAlphaP10NotNull,
+              ComplexRegressionP10$coefficients[1],
+              ComplexAlphaP10NotNull,
+              ComplexRegressionP10$coefficients[2],
+              ComplexRegressionP10$coefficients[3],
+              ComplexRegressionP10$coefficients[4],
+              ComplexRegressionP10$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10MinusP1",
+              SimpleRegressionP10MinusP1$coefficients[1],
+              AlphaP10MinusP1NotNull,
+              ComplexRegressionP10MinusP1$coefficients[1],
+              ComplexAlphaP10MinusP1NotNull,
+              ComplexRegressionP10MinusP1$coefficients[2],
+              ComplexRegressionP10MinusP1$coefficients[3],
+              ComplexRegressionP10MinusP1$coefficients[4],
+              ComplexRegressionP10MinusP1$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
 ```
+### L'alpha de Jensen
+
+```{r echo = FALSE}
+print(SimpleSummaryP10MinusP1)
+```
+Régression de la rentabilité de P10 par rapport au modèle du MEDAF. Celui-ci n'est pas significativement différent de 0 à $95\%$. Notre portefeuille ne dégage donc pas de rentabilité supérieure au marché. La stratégie momentum choisie n'est pas plus efficace qu'une gestion passive du portefeuille de marché.
+
+
+
+### Ratio de Treynor
+
+Intéressons nous maintenant au ratio de Treynor
+```{r echo = FALSE}
+print(SimpleMeasures[, c(1, 5) ])
+```
+On observe que $T_{P_{P10\_P1}} > T_{P_{M}}$. Notre protefeuille performerait mieux que celui du marché selon cette mesure (contrairement au résultat obtenu par la mesure du ratio de Sharpe). Notre protefeuille n'est peut être pas bien diversifié, dans ce cas le ratio de Treynor est plus pertinent. Notre protefeuille réalise bien un excès de rentabilité par rapport au marché, donc notre stratégie momentum 6 mois - 12 mois est une startégie dégageant de la rentabilité.
+
+## Stratégie alternative
+
+```{r echo = FALSE}
+renta3months.df = populateDataFrame(bMonth = 1, eMonth = 12, bYear = 1984, eYear = 2004, constationPeriod = 3, rebalancingPeriod = 3);
+#Tri la dataframe
+sortedPortfolio <- renta3months.df[with(renta3months.df, order(renta3months.df$return_on_period)), ];
+
+returnByPort = returnPortByTime(1984, 2005, 4, 3, 3);
+returnByPort <- applyFees(fees_percentage = 0.001, bMonth = 4, bYear = 1984, eMonth = 3, eYear = 2004, rebalancingPeriod = 3)
+MeasureSharpe3 <-SharpeRatio(1984, 4, 2005, 3, 3)
+print(MeasureSharpe3)
+```
+```{r echo=FALSE}
+colNamesRegression = c('year', 'month', 'returnP1-Rf', 'returnP10-Rf', 'returnP10MinusP1-Rf', 'RM-Rf', "SMB", "HML", "MOM");
+returnByPortRegression = data.frame(matrix(nrow=0, ncol=9));
+colnames(returnByPortRegression) <- colNamesRegression;
+
+for(i in 1:nrow(returnByPort))
+{
+  year <- returnByPort$year[i];
+  month <- returnByPort$month[i];
+  temp <- c(year, month,
+            returnByPort$`returnP1`[i]-returnByPort$RF[i],
+            returnByPort$`returnP10`[i]-returnByPort$RF[i],
+            returnByPort$`returnP10MinusP1`[i]-returnByPort$RF[i],
+            returnByPort$`RM`[i]-returnByPort$RF[i], 
+            datas_fm$SmallMinusBig[datas_fm$year==year & datas_fm$month==month][1],
+            datas_fm$HighMinusLow[datas_fm$year==year & datas_fm$month==month][1], 
+            datas_fm$MomentumFactor[datas_fm$year==year & datas_fm$month==month][1]);
+  returnByPortRegression[nrow(returnByPortRegression) + 1, ] <- temp;
+}
+
+epsilon <- 0.05
+
+#Simple Measures ie Jensen Alpha & Treynor
+SimpleRegressionP1 <- lm(returnByPortRegression$`returnP1-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP1<-summary(SimpleRegressionP1)
+AlphaP1NotNull <- SimpleSummaryP1$coefficient[1,4]  <= (epsilon/2)
+
+SimpleRegressionP10 <- lm(returnByPortRegression$`returnP10-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP10<-summary(SimpleRegressionP10)
+AlphaP10NotNull <- SimpleSummaryP10$coefficient[1,4]  <= (epsilon/2)
+
+SimpleRegressionP10MinusP1 <- lm(returnByPortRegression$`returnP10MinusP1-Rf`~returnByPortRegression$`RM-Rf`)
+SimpleSummaryP10MinusP1<-summary(SimpleRegressionP10MinusP1)
+AlphaP10MinusP1NotNull <- SimpleSummaryP10MinusP1$coefficient[2,4]  <= (epsilon/2)
+
+ColNamesMeasures <- c("PortfolioName",  "Beta", "Jensen Alpha","Significativ Alpha", "Treynor");
+SimpleMeasures <- data.frame(matrix(nrow=0, ncol=5));
+colnames(SimpleMeasures) <- ColNamesMeasures;
+
+list_tmp <- c("P1",
+              SimpleRegressionP1$coefficients[2],
+              SimpleRegressionP1$coefficients[1],
+              AlphaP1NotNull,
+              mean(returnByPortRegression$`returnP1-Rf`)/SimpleRegressionP1$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10",
+              SimpleRegressionP10$coefficients[2],
+              SimpleRegressionP10$coefficients[1],
+              AlphaP10NotNull,
+              mean(returnByPortRegression$`returnP10-Rf`)/SimpleRegressionP10$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10MinusP1",
+              SimpleRegressionP10MinusP1$coefficients[2],
+              SimpleRegressionP10MinusP1$coefficients[1],
+              AlphaP10MinusP1NotNull,
+              mean(returnByPortRegression$`returnP10MinusP1-Rf`)/SimpleRegressionP10MinusP1$coefficients[2])
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("Market",
+              1,
+              0,
+              TRUE,
+              mean(returnByPortRegression$`RM-Rf`))
+
+SimpleMeasures[nrow(SimpleMeasures) + 1, ] <- list_tmp;
+
+#Complex Measures ie Alpha Carhart-Fama&French model.
+
+ComplexRegressionP1 <- lm(returnByPortRegression$`returnP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP1<-summary(ComplexRegressionP1)
+ComplexAlphaP1NotNull <- ComplexSummaryP1$coefficient[1,4]  <= (epsilon/2)
+
+ComplexRegressionP10 <- lm(returnByPortRegression$`returnP10-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP10<-summary(ComplexRegressionP10)
+ComplexAlphaP10NotNull <- ComplexSummaryP10$coefficient[1,4]  <= (epsilon/2)
+
+ComplexRegressionP10MinusP1 <- lm(returnByPortRegression$`returnP10MinusP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
+ComplexSummaryP10MinusP1<-summary(ComplexRegressionP10MinusP1)
+ComplexAlphaP10MinusP1NotNull <- ComplexSummaryP10MinusP1$coefficient[1,4]  <= (epsilon/2)
+
+ColNamesComplexMeasures <- c("PortfolioName", "Alpha Jensen", "Significativ Alpha Jensen", "Alpha Carhart", "Significativ Alpha Carhart", "Beta Market" ,"Beta SMB", "Beta HML", "Beta MOM");
+ComplexMeasures <- data.frame(matrix(nrow=0, ncol=9));
+colnames(ComplexMeasures) <- ColNamesComplexMeasures;
+
+list_tmp <- c("P1",
+              SimpleRegressionP1$coefficients[1],
+              AlphaP1NotNull,
+              ComplexRegressionP1$coefficients[1],
+              ComplexAlphaP1NotNull,
+              ComplexRegressionP1$coefficients[2],
+              ComplexRegressionP1$coefficients[3],
+              ComplexRegressionP1$coefficients[4],
+              ComplexRegressionP1$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10",
+              SimpleRegressionP10$coefficients[1],
+              ComplexAlphaP10NotNull,
+              ComplexRegressionP10$coefficients[1],
+              ComplexAlphaP10NotNull,
+              ComplexRegressionP10$coefficients[2],
+              ComplexRegressionP10$coefficients[3],
+              ComplexRegressionP10$coefficients[4],
+              ComplexRegressionP10$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
+
+list_tmp <- c("P10MinusP1",
+              SimpleRegressionP10MinusP1$coefficients[1],
+              AlphaP10MinusP1NotNull,
+              ComplexRegressionP10MinusP1$coefficients[1],
+              ComplexAlphaP10MinusP1NotNull,
+              ComplexRegressionP10MinusP1$coefficients[2],
+              ComplexRegressionP10MinusP1$coefficients[3],
+              ComplexRegressionP10MinusP1$coefficients[4],
+              ComplexRegressionP10MinusP1$coefficients[5])
+
+ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
+```
+
+```{r echo = FALSE}
+print(SimpleSummaryP10MinusP1)
+```
+Régression de la rentabilité de P10 par rapport au modèle du MEDAF. Au seuil de $95\%$
+
+
+
+### Le ratio de Treynor
+
+Intéressons nous maintenant au ratio de Treynor
+```{r echo = FALSE}
+print(SimpleMeasures[, c(1, 5) ])
+```
+On observe que $T_{P_{P10\_P1}} > T_{P_{M}}$. Notre protefeuille performe mieux que celui du marché selon cette mesure (tout comme le résultat obtenu par la mesure du ratio de Sharpe). 
+
+La stratégie momentum 3 mois de constatation avec rebalancement tous les 3 mois fonctionne mieux que celle 6 mois - 12 mois. On peut penser que l'information sur les titres s'intégre rapidement dans le prix des titres. Lorsque l'on observe les titres 6 mois, peut être que les titres ayant le mieux performé ont bien performé justement parce toute la bonne information s'est intégrée dans le prix durant ces 6 mois. De ce fait, durant les 12 mois suivants où le titre est en portefeuille, il n'y a plus d'information à intégrer et les rentabilités des titres n'augmentent plus. Le raisonnement sur les titres ayant le moins bien performé est similaire.
+Tandis que lorsqu'on observe les rentabilités des titres sur 3 mois, toute la bonne information n'a pas encore été totalement intégrée dans le prix, et les rentabilités continuent d'augmenter durant les 3 mois suivants. 
