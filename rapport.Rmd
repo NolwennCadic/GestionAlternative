@@ -7,7 +7,7 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd("~/nolwenn/3A/GestionAlternative")
+setwd("/user/2/.base/cadicn/home/Documents/3A/GA")
 ```
 
 ```{r echo=FALSE}
@@ -23,17 +23,16 @@ stock_number = prev_stock_number;
 stock_number_unique = prev_stock_number_unique;
 ```
 
-## Sélection des 100 titres
+## SÃ©lection des 100 titres
 
-Afin de sélectionner les 100 titres ayant le plus de données possibles, nous avons d'abord selectionné tous les titres ayant des valeurs en 2004 (sur les 12 mois). Puis à partir de ces titres, nous sommes remontés dans le temps, en ne gardant chaque année que les titres ayant des valeurs sur les 12 mois de l'année. Nous nous sommes arrétés lorques nous avions 100 stocks.
-Nous avons donc des données entre 1984 et 2004.
+Afin de sÃ©lectionner les 100 titres ayant le plus de donnÃ©es possibles, nous avons d'abord selectionnÃ© tous les titres ayant des valeurs en 2004 (sur les 12 mois). Puis Ã  partir de ces titres, nous sommes remontÃ©s dans le temps, en ne gardant chaque annÃ©e que les titres ayant des valeurs sur les 12 mois de l'annÃ©e. Nous nous sommes arrÃ©tÃ©s lorques nous avions 100 stocks.
+Nous avons donc des donnÃ©es entre 1984 et 2004.
 Les stockes retenus sont les suivants :
 
 ```{r echo=FALSE}
 check_values <- function(list_stock, year) {
   for(stock in list_stock) {
     if(length(datas_fm$return_rf[datas_fm$stock_number == stock & datas_fm$year == year]) != 12) {
-      #cat(list_stock);
       list_stock = list_stock[list_stock != stock]
     }
   }
@@ -48,23 +47,21 @@ while (length(prev_stock_number_unique) > 100 && y > 1966) {
   prev_stock_number_unique = intersect(prev_stock_number_unique, stock_numbers);
   y = y - 1;
 }
-
-cat(prev_stock_number_unique);
 ```
 
-## Stratégie momentum 6 mois - 12 mois
+## StratÃ©gie momentum 6 mois - 12 mois
 
-Dans un premier temps, nous nous sommes intéressés à la stratégie momentum qui consiste à étudier les rentabilités des titres pendant 6 mois, puis de consituter 3 portefeuilles :
+Dans un premier temps, nous nous sommes intÃ©ressÃ©s Ã  la stratÃ©gie momentum qui consiste Ã  Ã©tudier les rentabilitÃ©s des titres pendant 6 mois, puis de consituter 3 portefeuilles :
 \begin{itemize}
-  \item P10 : Portfeuille constitué des titres ayant réalisés les meilleures rentabilités au cours de la période d'observation
-  \item P1 : Portfeuille constitué des titres ayant réalisés les moins bonnes rentbilités au cours de la période d'observation
+  \item P10 : Portfeuille constituÃ© des titres ayant rÃ©alisÃ©s les meilleures rentabilitÃ©s au cours de la pÃ©riode d'observation
+  \item P1 : Portfeuille constituÃ© des titres ayant rÃ©alisÃ©s les moins bonnes rentbilitÃ©s au cours de la pÃ©riode d'observation
   \item P10 - P1: Achat du portefeuille P10 et vente du portefeuille P1
 \end{itemize}
 
-Pour constituer les portefeuilles, nous avons calculé les rentabilités mensuelles de chaque titre sur la periode de 6 mois. Une fois les titres placés en portefeuille, nous avons calculé la rentabilé sur 12 mois de chaque titre e portefeuille puis de l'ensemble du portefeuille. Nous avons effectué cela entre 1984 et 2004.
+Pour constituer les portefeuilles, nous avons calculÃ© les rentabilitÃ©s mensuelles de chaque titre sur la periode de 6 mois. Une fois les titres placÃ©s en portefeuille, nous avons calculÃ© la rentabilÃ© sur 12 mois de chaque titre e portefeuille puis de l'ensemble du portefeuille. Nous avons effectuÃ© cela entre 1984 et 2004.
 
 ```{r echo=FALSE}
-#Nouvelle data frame avec les données des 100 titres entre 1981 et 2005
+#Nouvelle data frame avec les donnÃ©es des 100 titres entre 1981 et 2005
 datas_stock.df = datas_fm[which(datas_fm$stock_number %in% prev_stock_number_unique) ,];
 datas_stock.df = datas_stock.df[which(datas_stock.df$year >= 1981), ];
 
@@ -95,12 +92,11 @@ CalculeRenta <- function(bMonth, eMonth, bYear, eYear, stockNum) {
 } 
 
 
-#Calcule de la rentabilité d'un titre entre les périodes données
+#Calcule de la rentabilitÃ© d'un titre entre les pÃ©riodes donnÃ©es
 CalculeRentaOverYears <- function(bMonth, eMonth, bYear, eYear, stockNum) {
   value = 1;
   compteur = 0;
   if(eYear < bYear || (eYear == bYear && bMonth > eMonth)) { #Error period.
-    cat("Error return period ", bMonth, " ", eMonth, " ", bYear, " ", eYear, " \n");
     return(0);
   }
   if(eYear > bYear) {#Good period and return over different years.
@@ -160,13 +156,11 @@ populateDataFrame <- function(bMonth, eMonth, bYear, eYear, constationPeriod, re
     newYear = newYear + 1
   }
   while(year != eYear || endMonth != eMonth){
-    cat("year : ", year, "\n")
     for (stock_number in  prev_stock_number_unique){
 
 
       
       monthlyReturn = CalculeRentaOverYears(month, endMonth, year, newYear, stock_number);
-      #cat(monthlyReturn);
       
       list_tmp <- c(stock_number, year, monthlyReturn);
       
@@ -176,8 +170,6 @@ populateDataFrame <- function(bMonth, eMonth, bYear, eYear, constationPeriod, re
     
     month = endMonth + rebalancingPeriod - constationPeriod + 1
     endMonth = month + constationPeriod - 1
-    cat("month : " , month , "\n")
-    cat("endmonth : " , endMonth , "\n")
     if((endMonth)>12){
       endMonth = endMonth %% 13 + 1 
     }
@@ -197,7 +189,7 @@ renta6months.df = populateDataFrame(1, 6, 1984, 2005, 6, 12);
 sortedPortfolio <- renta6months.df[with(renta6months.df, order(renta6months.df$return_on_period)), ];
 
 
-#Data frame pour stocker tous les portefeuilles P1 et P10 entre 1984 et 2005, composition à chaque mois et renta à chaque année
+#Data frame pour stocker tous les portefeuilles P1 et P10 entre 1984 et 2005, composition Ã  chaque mois et renta Ã  chaque annÃ©e
 GetAllP = function(bYear, eYear, bMonth, eMonth, rebalancingPeriod) {
   port_df = data.frame(matrix(nrow=0, ncol=5));
   colNames = c("stock_number", "month", "year", "portfolio number", "return");
@@ -211,8 +203,6 @@ GetAllP = function(bYear, eYear, bMonth, eMonth, rebalancingPeriod) {
     P1 = sortedPortfolioyear[1:10,];
     deb = lenPort - 9;
     P10 = sortedPortfolioyear[deb:lenPort, ];
-
-    cat("month : ", month, "year : ", year, "\n")
     for (row in 1:10) {
       nMonth = month
       counter = 0
@@ -252,7 +242,7 @@ allP = GetAllP(1984, 2005, 7, 6, 12);
 write.csv(allP, file = "compositionPortefeuilles.csv")
 ```
 
-Vous trouverez la compostion des portefeuilles P1 et P10 à chaque période (chaque mois) ainsi que la rentabilité de chaque stock composante le portefeuille dans le fichier compositionPortefeuilles.csv joint à ce rapport.
+Vous trouverez la compostion des portefeuilles P1 et P10 Ã  chaque pÃ©riode (chaque mois) ainsi que la rentabilitÃ© de chaque stock composante le portefeuille dans le fichier compositionPortefeuilles.csv joint Ã  ce rapport.
 
 ```{r echo=FALSE}
 returnPortByTime = function(bYear, eYear, bMonth, eMonth, rebalancingPeriod) {
@@ -260,23 +250,17 @@ returnPortByTime = function(bYear, eYear, bMonth, eMonth, rebalancingPeriod) {
   returnByPort = data.frame(matrix(nrow=0, ncol=7));
   colnames(returnByPort) <- colNames3;
   allP = GetAllP(bYear, eYear, bMonth, eMonth, rebalancingPeriod);
-  print(allP[1:10, ])
   year = bYear
   month = bMonth
 
   while (year != eYear ){
     count = 0
-    cat("year : ", year, "\n")
-    cat("first month : ", month, "\n")
 
     while( count < rebalancingPeriod){
       Rm <- datas_stock.df$Marketretrun[datas_stock.df$year == year & datas_stock.df$month==month & datas_stock.df$stock_number==559]
       Rf <- datas_stock.df$RiskFreeReturn[datas_stock.df$year == year & datas_stock.df$month==month & datas_stock.df$stock_number==559]
       returnP1 = mean(as.numeric(allP$return[allP$`portfolio number`=='P1'& allP$year==year & allP$month==month]));
       returnP10 = mean(as.numeric(allP$return[allP$`portfolio number`=='P10'& allP$year== year & allP$month==month]));
-      cat("month : ", month, "\n")
-      cat("returnP1 : ", returnP1 , "\n")
-      cat("returnP10 : ", returnP10, "\n")
       returnP10minusP1 = returnP10 - returnP1;
       list_tmp <- c(year, month, returnP1, returnP10, returnP10minusP1, Rm, Rf);
       returnByPort[nrow(returnByPort) + 1, ] <- list_tmp;
@@ -302,7 +286,7 @@ write.csv(returnByPort, file = "rentaParPortefeuille.csv")
 
 ```
 
-Vous trouverez également la rentabilité par portefeuille à chaque période de l'année dans le fichier rentaParPortefeuille.csv joint au rapport. Ce premier fichier ne prend pas en compte l'application de coûts de transaction.
+Vous trouverez Ã©galement la rentabilitÃ© par portefeuille Ã  chaque pÃ©riode de l'annÃ©e dans le fichier rentaParPortefeuille.csv joint au rapport. Ce premier fichier ne prend pas en compte l'application de coÃ»ts de transaction.
 
 ``` {r echo=FALSE}
 #Apply the transaction fees on the P10-P1 portfolio returns 
@@ -326,16 +310,17 @@ returnByPort <- applyFees(fees_percentage = 0.001, bMonth = 7,bYear = 1984, eMon
 write.csv(returnByPort, file = "rentaParPortefeuilleAvecFrais.csv")
 
 ```
-Dans le fichier rentaParPortefeuilleAvecFrais les frais de transaction sont appliqués. On constate logiquement que les rentabilités diminuent.
+Dans le fichier rentaParPortefeuilleAvecFrais les frais de transaction sont appliquÃ©s. On constate logiquement que les rentabilitÃ©s diminuent.
 
 ### Mesures de performance
 
-Nous nous intéressons maintenant à l'efficacité de notre stratégie. Pour cela nous allons étudier diverses mesures de performance :
+Nous nous intÃ©ressons maintenant Ã  l'efficacitÃ© de notre stratÃ©gie. Pour cela nous allons Ã©tudier diverses mesures de performance :
 \begin{itemize}
   \item Le ratio de Sharpe
   \item L'alpha de jensen
-  \item L'alpha dans le modèle de Famah et French
-  \item L'alpha dans le modèle de Cahart
+  \item Le ration de Treynor
+  \item L'alpha dans le modÃ¨le de Famah et French
+  \item L'alpha dans le modÃ¨le de Cahart
 \end{itemize}
 
 #### Le ratio de Sharpe
@@ -371,11 +356,11 @@ MeasureSharp
 ```
 
 
-Notons $S_{M}$ le ratio de sharpe du marché, $S_{P1}$ le ratio de sharpe du portefeuille P1, $S_{P10}$ le ratio de sharpe du portefeuille P10 et $S_{P10\_P1}$ le ratio de sharpe du portefeuille P10 moins P1.
-Nous remarquons que $S_{P10} \lt S_{P1}$. Cela n'est pas surprenant, puisque le portefeuille P1 est constitué des titres ayant le moins bien performé au cours des 6 mois précédents sa constitution. On peut s'attendre à ce que ces titres continuent de mal performer par l'effet momentum, et qu'il ne fassent pas mieux que le marché.
-On remarque également que $S_{P1} \lt S_{M0}$. C'est plus surprenant et remet en doute notre stratégie momentum. Cela peut s'expliquer par le fait que notre période de rebalancement et notre période de constation n'est pas adaptée. L'information des titres s'intégre rapidement dans les prix, notre échantillon est certainement composé d'entreprises de grandes tailles pour lesquelles l'information est plus rapidement intégrée dans les prix.
-On peut également se demander si la mesure du ratio de sharpe est pertinente dans la mesure où nos portefeuilles ne sont composés que de 10 titres. Ils ne sont donc pas forcément bien diversifiés et ont un risque supérieur au risque du marché.
-Enfin, nous avons inclus des frais de transaction, ce qui diminue les rentabilités et donc le ratio de Sharpe.
+Notons $S_{M}$ le ratio de sharpe du marchÃ©, $S_{P1}$ le ratio de sharpe du portefeuille P1, $S_{P10}$ le ratio de sharpe du portefeuille P10 et $S_{P10\_P1}$ le ratio de sharpe du portefeuille P10 moins P1.
+Nous remarquons que $S_{P10} < S_{P1}$. Cela n'est pas surprenant, puisque le portefeuille P1 est constituÃ© des titres ayant le moins bien performÃ© au cours des 6 mois prÃ©cÃ©dents sa constitution. On peut s'attendre Ã  ce que ces titres continuent de mal performer par l'effet momentum, et qu'il ne fassent pas mieux que le marchÃ©.
+On remarque Ã©galement que $S_{P1} < S_{M}$. C'est plus surprenant et remet en doute notre stratÃ©gie momentum. Cela peut s'expliquer par le fait que notre pÃ©riode de rebalancement et notre pÃ©riode de constation n'est pas adaptÃ©e. L'information des titres s'intÃ¨gre rapidement dans les prix, notre Ã©chantillon est certainement composÃ© d'entreprises de grandes tailles pour lesquelles l'information est plus rapidement intÃ©grÃ©e dans les prix.
+On peut Ã©galement se demander si la mesure du ratio de sharpe est pertinente dans la mesure oÃ¹ nos portefeuilles ne sont composÃ©s que de 10 titres. Ils ne sont donc pas forcÃ©ment bien diversifiÃ©s et ont un risque supÃ©rieur au risque du marchÃ©.
+Enfin, nous avons inclus des frais de transaction, ce qui diminue les rentabilitÃ©s et donc le ratio de Sharpe.
 
 ### L'alpha de Jensen
 
