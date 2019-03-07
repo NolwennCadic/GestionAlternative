@@ -496,7 +496,7 @@ ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
 ```{r echo = FALSE}
 print(SimpleSummaryP10MinusP1)
 ```
-Régression de la rentabilité de P10 par rapport au modèle du MEDAF. Celui-ci n'est pas significativement différent de 0 à $95\%$. Notre portefeuille ne dégage donc pas de rentabilité supérieure au marché. La stratégie momentum choisie n'est pas plus efficace qu'une gestion passive du portefeuille de marché.
+Régression de la rentabilité de \P_{P10\_P1} par rapport au modèle du MEDAF. Celui-ci n'est pas significativement différent de 0 à $95\%$ car la p valeur vaut 0.828. Notre portefeuille ne dégage donc pas de rentabilité supérieure au marché. La stratégie momentum choisie n'est pas plus efficace qu'une gestion passive du portefeuille de marché.
 
 
 
@@ -504,9 +504,10 @@ Régression de la rentabilité de P10 par rapport au modèle du MEDAF. Celui-ci 
 
 Intéressons nous maintenant au ratio de Treynor
 ```{r echo = FALSE}
-print(SimpleMeasures[, c(1, 5) ])
+print(SimpleMeasures[c(3,4), c(1, 5) ])
+
 ```
-On observe que $T_{P_{P10\_P1}} > T_{P_{M}}$. Notre protefeuille performerait mieux que celui du marché selon cette mesure (contrairement au résultat obtenu par la mesure du ratio de Sharpe). Notre protefeuille n'est peut être pas bien diversifié, dans ce cas le ratio de Treynor est plus pertinent. Notre protefeuille réalise bien un excès de rentabilité par rapport au marché, donc notre stratégie momentum 6 mois - 12 mois est une startégie dégageant de la rentabilité.
+On observe que $T_{P_{P10\_P1}} > T_{P_{M}}$. Notre protefeuille performerait mieux que celui du marché selon cette mesure (contrairement au résultat obtenu par la mesure du ratio de Sharpe). En se basant sur cette mesure de performance, notre protefeuille réalise bien un excès de rentabilité par rapport au marché, donc notre stratégie momentum 6 mois - 12 mois est une startégie dégageant de la rentabilité.
 
 ## Stratégie alternative
 
@@ -518,8 +519,10 @@ sortedPortfolio <- renta3months.df[with(renta3months.df, order(renta3months.df$r
 returnByPort = returnPortByTime(1984, 2005, 4, 3, 3);
 returnByPort <- applyFees(fees_percentage = 0.001, bMonth = 4, bYear = 1984, eMonth = 3, eYear = 2004, rebalancingPeriod = 3)
 MeasureSharpe3 <-SharpeRatio(1984, 4, 2005, 3, 3)
-print(MeasureSharpe3)
+print(MeasureSharpe3[1, c(1,4)])
 ```
+Le ratio de sharpe du portefeuille de marché est inférieur à celui du portefeuille $P_{P10\_P1}$. Ainsi en considérant que le portefeuille $P_{P10\_P1}$ est bien diversifié et qu'il ne subit que le risque total, et dans les hypothèses de la théorie financière classique, il performe mieux que le portefeuille de marché. 
+
 ```{r echo=FALSE}
 colNamesRegression = c('year', 'month', 'returnP1-Rf', 'returnP10-Rf', 'returnP10MinusP1-Rf', 'RM-Rf', "SMB", "HML", "MOM");
 returnByPortRegression = data.frame(matrix(nrow=0, ncol=9));
@@ -597,16 +600,27 @@ ComplexRegressionP1 <- lm(returnByPortRegression$`returnP1-Rf`~returnByPortRegre
 ComplexSummaryP1<-summary(ComplexRegressionP1)
 ComplexAlphaP1NotNull <- ComplexSummaryP1$coefficient[1,4]  <= (epsilon/2)
 
+#Fama & French
+ComplexRegression2P1 <- lm(returnByPortRegression$`returnP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML)
+ComplexSummary2P1<-summary(ComplexRegression2P1)
+
 ComplexRegressionP10 <- lm(returnByPortRegression$`returnP10-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
 ComplexSummaryP10<-summary(ComplexRegressionP10)
-ComplexAlphaP10NotNull <- ComplexSummaryP10$coefficient[1,4]  <= (epsilon/2)
+
+#Fama & French
+ComplexRegression2P10 <- lm(returnByPortRegression$`returnP10-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML)
+ComplexSummary2P10<-summary(ComplexRegression2P10)
 
 ComplexRegressionP10MinusP1 <- lm(returnByPortRegression$`returnP10MinusP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML+returnByPortRegression$MOM)
 ComplexSummaryP10MinusP1<-summary(ComplexRegressionP10MinusP1)
 ComplexAlphaP10MinusP1NotNull <- ComplexSummaryP10MinusP1$coefficient[1,4]  <= (epsilon/2)
 
-ColNamesComplexMeasures <- c("PortfolioName", "Alpha Jensen", "Significativ Alpha Jensen", "Alpha Carhart", "Significativ Alpha Carhart", "Beta Market" ,"Beta SMB", "Beta HML", "Beta MOM");
-ComplexMeasures <- data.frame(matrix(nrow=0, ncol=9));
+#Fama & French
+ComplexRegression2P10MinusP1 <- lm(returnByPortRegression$`returnP10MinusP1-Rf`~returnByPortRegression$`RM-Rf`+returnByPortRegression$SMB+returnByPortRegression$HML)
+ComplexSummary2P10MinusP1<-summary(ComplexRegression2P10MinusP1)
+
+ColNamesComplexMeasures <- c("PortfolioName", "Alpha Jensen", "Significativ Alpha Jensen", "Alpha Fama&French", "Alpha Carhart", "Significativ Alpha Carhart", "Beta Market" ,"Beta SMB", "Beta HML", "Beta MOM");
+ComplexMeasures <- data.frame(matrix(nrow=0, ncol=10));
 colnames(ComplexMeasures) <- ColNamesComplexMeasures;
 
 list_tmp <- c("P1",
@@ -614,6 +628,7 @@ list_tmp <- c("P1",
               AlphaP1NotNull,
               ComplexRegressionP1$coefficients[1],
               ComplexAlphaP1NotNull,
+              ComplexRegression2P1$coefficients[1],
               ComplexRegressionP1$coefficients[2],
               ComplexRegressionP1$coefficients[3],
               ComplexRegressionP1$coefficients[4],
@@ -626,6 +641,7 @@ list_tmp <- c("P10",
               ComplexAlphaP10NotNull,
               ComplexRegressionP10$coefficients[1],
               ComplexAlphaP10NotNull,
+              ComplexRegression2P10$coefficients[1],
               ComplexRegressionP10$coefficients[2],
               ComplexRegressionP10$coefficients[3],
               ComplexRegressionP10$coefficients[4],
@@ -638,6 +654,7 @@ list_tmp <- c("P10MinusP1",
               AlphaP10MinusP1NotNull,
               ComplexRegressionP10MinusP1$coefficients[1],
               ComplexAlphaP10MinusP1NotNull,
+              ComplexRegression2P10MinusP1$coefficients[1],
               ComplexRegressionP10MinusP1$coefficients[2],
               ComplexRegressionP10MinusP1$coefficients[3],
               ComplexRegressionP10MinusP1$coefficients[4],
@@ -649,17 +666,32 @@ ComplexMeasures[nrow(ComplexMeasures) + 1, ] <- list_tmp;
 ```{r echo = FALSE}
 print(SimpleSummaryP10MinusP1)
 ```
-Régression de la rentabilité de P10 par rapport au modèle du MEDAF. Au seuil de $95\%$
+Régression de la rentabilité de P10 par rapport au modèle du MEDAF. Au seuil de $95\%$, le alpha de jensen est significativement différent de 0. Le portefeuille $P_{P10\_P1}$ dégage une rentabilité supérieure à celle du portefeuille de marché. Le portefeuille performe donc mieux que celui du marché. Il faut se demander si c'est parce qu'il est composé d'entreprises plus risquées dont la rentabilité est supérieure, comme des entreprises de petite tailles ou des sociétés de rendement...
 
+Pour cela, nous allons calculer le alpha de Fama et French
+
+```{r echo = FALSE}
+print(ComplexSummary2P10MinusP1)
+```
+Dans le modèle de Fama et French, le alpha est significativement différent de 0 au seuil de $95\%$ (p valeur < $2e^{-16}$). Le portefeuille $P_{P10\_P1}$ dégage un rendement supérieur au portefeuille de marché, même en tenant compte des facteurs taille et book to market.
+
+Ce rendement est-il lié à l'effet momentum ? Nous allons l'analyser dans le modèle de Carhart.
+
+```{r echo = FALSE}
+print(ComplexSummaryP10MinusP1)
+```
+
+On trouve que le $\beta$ de l'effet momentum vaut $\beta_{MOM} = 0.2147$ et qu'il est significativement différent de 0. Notre portefeuille $P_{P10\_P1}$ est positivement corrélé avec le facteur effet momentum. C'est cohérent avec la stratégie d'effet momentum créée. De plus dans ce modèle, le alpha est également significativement différent de 0, donc le portefeuille $P_{P10\_P1}$ a un excès de rentabilité par rapport au modèle de Carhart.
 
 
 ### Le ratio de Treynor
 
 Intéressons nous maintenant au ratio de Treynor
 ```{r echo = FALSE}
-print(SimpleMeasures[, c(1, 5) ])
+print(SimpleMeasures[ c(3,4), c(1, 5) ])
 ```
-On observe que $T_{P_{P10\_P1}} > T_{P_{M}}$. Notre protefeuille performe mieux que celui du marché selon cette mesure (tout comme le résultat obtenu par la mesure du ratio de Sharpe). 
+On observe que $T_{P_{P10\_P1}} < T_{P_{M}}$. Notre protefeuille performe moins bien que celui du marché d'après cette mesure de performance. Cela est dû au fait que d'après la régression linéaire, le $\beta$ de $P_{P10\_P1}$ est négatif. Notre portefeuille est un portefeuille refuge puisque ses fluctuations sont opposées aux fluctuation du marché.
 
-La stratégie momentum 3 mois de constatation avec rebalancement tous les 3 mois fonctionne mieux que celle 6 mois - 12 mois. On peut penser que l'information sur les titres s'intégre rapidement dans le prix des titres. Lorsque l'on observe les titres 6 mois, peut être que les titres ayant le mieux performé ont bien performé justement parce toute la bonne information s'est intégrée dans le prix durant ces 6 mois. De ce fait, durant les 12 mois suivants où le titre est en portefeuille, il n'y a plus d'information à intégrer et les rentabilités des titres n'augmentent plus. Le raisonnement sur les titres ayant le moins bien performé est similaire.
+## Conclusion sur la stratégie alternative
+La stratégie momentum 3 mois de constatation avec rebalancement tous les 3 mois fonctionne mieux que celle 6 mois - 12 mois (en se basant sur le ratio de sharpe, et les différents alpha). On peut penser que l'information sur les titres s'intégre rapidement dans le prix des titres. Lorsque l'on observe les titres 6 mois, peut être que les titres ayant le mieux performé ont bien performé justement parce toute la bonne information s'est intégrée dans le prix durant ces 6 mois. De ce fait, durant les 12 mois suivants où le titre est en portefeuille, il n'y a plus d'information à intégrer et les rentabilités des titres n'augmentent plus. Le raisonnement sur les titres ayant le moins bien performé est similaire.
 Tandis que lorsqu'on observe les rentabilités des titres sur 3 mois, toute la bonne information n'a pas encore été totalement intégrée dans le prix, et les rentabilités continuent d'augmenter durant les 3 mois suivants. 
